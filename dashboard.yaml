@@ -1,0 +1,883 @@
+title: MaintainX
+views:
+
+  ##############################################
+  # TAB 1 — HOME
+  ##############################################
+  - title: Home
+    path: home
+    icon: mdi:home
+    badges: []
+    cards:
+
+      - type: markdown
+        content: |
+          # 🔧 MaintainX
+          ### Welcome! What would you like to do?
+
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.maintainx_open_work_orders
+            name: "🔴 Open"
+          - type: entity
+            entity: sensor.maintainx_in_progress_work_orders
+            name: "🟡 Active"
+          - type: entity
+            entity: sensor.maintainx_on_hold_work_orders
+            name: "🟠 On Hold"
+          - type: entity
+            entity: sensor.maintainx_completed_work_orders
+            name: "🟢 Done"
+
+      - type: markdown
+        content: |
+          {% set open = states('sensor.maintainx_open_work_orders') | int %}
+          {% if open > 10 %}
+          ## ⚠️ {{ open }} jobs waiting!
+          {% elif open > 0 %}
+          ## 📋 {{ open }} open jobs
+          {% else %}
+          ## ✅ All caught up! No open jobs.
+          {% endif %}
+
+      - type: grid
+        columns: 2
+        square: true
+        cards:
+          - type: button
+            name: "📋 View Jobs"
+            icon: mdi:clipboard-list
+            tap_action:
+              action: navigate
+              navigation_path: /maintainx-dashboard/jobs
+            icon_height: 60px
+            show_state: false
+          - type: button
+            name: "➕ New Job"
+            icon: mdi:clipboard-plus
+            tap_action:
+              action: navigate
+              navigation_path: /maintainx-dashboard/create
+            icon_height: 60px
+            show_state: false
+          - type: button
+            name: "⚡ Quick Report"
+            icon: mdi:lightning-bolt
+            tap_action:
+              action: navigate
+              navigation_path: /maintainx-dashboard/quick
+            icon_height: 60px
+            show_state: false
+          - type: button
+            name: "🔩 Assets"
+            icon: mdi:package-variant
+            tap_action:
+              action: navigate
+              navigation_path: /maintainx-dashboard/assets
+            icon_height: 60px
+            show_state: false
+          - type: button
+            name: "🔧 Manage Job"
+            icon: mdi:clipboard-edit
+            tap_action:
+              action: navigate
+              navigation_path: /maintainx-dashboard/manage
+            icon_height: 60px
+            show_state: false
+          - type: button
+            name: "📊 All Jobs"
+            icon: mdi:clipboard-text-clock
+            tap_action:
+              action: navigate
+              navigation_path: /maintainx-dashboard/all
+            icon_height: 60px
+            show_state: false
+
+  ##############################################
+  # TAB 2 — VIEW JOBS
+  ##############################################
+  - title: Jobs
+    path: jobs
+    icon: mdi:clipboard-list
+    badges: []
+    cards:
+
+      - type: markdown
+        content: "# 📋 Open & Active Jobs"
+
+      - type: markdown
+        content: |
+          {% set orders = state_attr('sensor.maintainx_open_work_orders', 'work_orders') %}
+          {% if orders and orders | length > 0 %}
+          {% for wo in orders %}
+
+          ---
+
+          ## {% if wo.priority == 'CRITICAL' %}🔴{% elif wo.priority == 'HIGH' %}🟠{% elif wo.priority == 'MEDIUM' %}🟡{% elif wo.priority == 'LOW' %}🟢{% else %}⚪{% endif %} {{ wo.title }}
+
+          {% if wo.description %}> {{ wo.description }}{% endif %}
+
+          | | |
+          |---|---|
+          | **Job #** | {{ wo.id }} |
+          | **Priority** | {% if wo.priority == 'CRITICAL' %}🔴 CRITICAL{% elif wo.priority == 'HIGH' %}🟠 HIGH{% elif wo.priority == 'MEDIUM' %}🟡 MEDIUM{% elif wo.priority == 'LOW' %}🟢 LOW{% else %}⚪ NONE{% endif %} |
+          | **Created** | {{ wo.created_at[:10] if wo.created_at else 'N/A' }} |
+          {% if wo.due_date %}| **Due** | {{ wo.due_date[:10] }} |{% endif %}
+          {% if wo.asset %}| **Asset** | 🔩 {{ wo.asset.name }} |{% endif %}
+          {% if wo.location %}| **Location** | 📍 {{ wo.location.name }} |{% endif %}
+          {% if wo.assignees and wo.assignees | length > 0 %}| **Assigned** | 👤 {% for a in wo.assignees %}{{ a.name }}{% if not loop.last %}, {% endif %}{% endfor %} |{% endif %}
+
+          {% if wo.checklist and wo.checklist | length > 0 %}
+          {% for item in wo.checklist %}- {% if item.completed %}✅{% else %}⬜{% endif %} {{ item.name }}
+          {% endfor %}{% endif %}
+
+          {% endfor %}
+          {% else %}
+          ### ✅ No open work orders!
+          {% endif %}
+
+  ##############################################
+  # TAB 3 — MANAGE JOB
+  ##############################################
+  - title: Manage
+    path: manage
+    icon: mdi:clipboard-edit
+    badges: []
+    cards:
+
+      - type: markdown
+        content: |
+          # 🔧 Manage a Job
+          Select a job below, then use the big buttons to manage it.
+
+      - type: entities
+        title: "1️⃣ Select a Job"
+        show_header_toggle: false
+        entities:
+          - entity: input_select.maintainx_manage_wo
+            name: "Choose Job"
+            icon: mdi:clipboard-list
+
+      - type: markdown
+        content: "### 2️⃣ Quick Actions"
+
+      - type: grid
+        columns: 3
+        square: true
+        cards:
+          - type: button
+            entity: input_button.maintainx_start_wo
+            name: "▶️ START"
+            icon: mdi:play-circle
+            tap_action:
+              action: toggle
+            show_state: false
+          - type: button
+            entity: input_button.maintainx_hold_wo
+            name: "⏸️ HOLD"
+            icon: mdi:pause-circle
+            tap_action:
+              action: toggle
+            show_state: false
+          - type: button
+            entity: input_button.maintainx_complete_wo
+            name: "✅ DONE"
+            icon: mdi:check-circle
+            tap_action:
+              action: toggle
+            show_state: false
+
+      - type: markdown
+        content: "### 3️⃣ Change Status or Priority"
+
+      - type: entities
+        show_header_toggle: false
+        entities:
+          - entity: input_select.maintainx_manage_status
+            name: "New Status"
+            icon: mdi:flag
+          - entity: input_select.maintainx_manage_priority
+            name: "New Priority"
+            icon: mdi:alert-circle
+
+      - type: horizontal-stack
+        cards:
+          - type: button
+            entity: input_button.maintainx_update_status
+            name: "Update Status"
+            icon: mdi:flag-variant
+            tap_action:
+              action: toggle
+            show_state: false
+          - type: button
+            entity: input_button.maintainx_update_priority
+            name: "Update Priority"
+            icon: mdi:alert-circle-outline
+            tap_action:
+              action: toggle
+            show_state: false
+
+      - type: markdown
+        content: "### 4️⃣ Add a Comment"
+
+      - type: entities
+        show_header_toggle: false
+        entities:
+          - entity: input_text.maintainx_manage_comment
+            name: "Your Comment"
+            icon: mdi:comment-text
+
+      - type: button
+        entity: input_button.maintainx_submit_comment
+        name: "💬 Send Comment"
+        icon: mdi:comment-check
+        tap_action:
+          action: toggle
+        icon_height: 50px
+        show_state: false
+
+      - type: markdown
+        content: |
+          {% set selected = states('input_select.maintainx_manage_wo') %}
+          {% if selected != 'None' and '#' in selected %}
+          {% set parts = selected.split('#') %}
+          {% if parts | length > 1 %}
+          {% set id_part = parts[1].split(' ')[0] %}
+          {% set wo_id = id_part | int(0) %}
+          {% if wo_id > 0 %}
+          {% set orders = state_attr('sensor.maintainx_recent_work_orders', 'recent_work_orders') %}
+          {% if orders %}
+          {% set matches = orders | selectattr('id', 'eq', wo_id) | list %}
+          {% if matches | length > 0 %}
+          {% set wo = matches[0] %}
+
+          ---
+
+          ## 📄 Currently Selected Job
+
+          ### {% if wo.priority == 'CRITICAL' %}🔴{% elif wo.priority == 'HIGH' %}🟠{% elif wo.priority == 'MEDIUM' %}🟡{% elif wo.priority == 'LOW' %}🟢{% else %}⚪{% endif %} {{ wo.title }}
+
+          {% if wo.description %}> {{ wo.description }}{% endif %}
+
+          | | |
+          |---|---|
+          | **Status** | {{ wo.status }} |
+          | **Priority** | {{ wo.priority }} |
+          {% if wo.asset %}| **Asset** | {{ wo.asset.name }} |{% endif %}
+          {% if wo.location %}| **Location** | {{ wo.location.name }} |{% endif %}
+          {% endif %}
+          {% endif %}
+          {% endif %}
+          {% endif %}
+          {% endif %}
+
+  ##############################################
+  # TAB 4 — CREATE JOB
+  ##############################################
+  - title: Create
+    path: create
+    icon: mdi:clipboard-plus
+    badges: []
+    cards:
+
+      - type: markdown
+        content: |
+          # ➕ New Job
+          Fill in what you need. Only **Title** is required!
+
+      - type: entities
+        title: "What needs to be done?"
+        show_header_toggle: false
+        entities:
+          - entity: input_text.maintainx_wo_title
+            name: "Job Title *"
+            icon: mdi:format-title
+          - entity: input_text.maintainx_wo_description
+            name: "Details (optional)"
+            icon: mdi:text
+
+      - type: entities
+        title: "How urgent is it?"
+        show_header_toggle: false
+        entities:
+          - entity: input_select.maintainx_wo_priority
+            name: "Priority"
+            icon: mdi:alert-circle
+          - entity: input_select.maintainx_wo_category
+            name: "Type of Work"
+            icon: mdi:tag
+
+      - type: entities
+        title: "Where and Who? (optional)"
+        show_header_toggle: false
+        entities:
+          - entity: input_select.maintainx_wo_assignee
+            name: "Assign To"
+            icon: mdi:account
+          - entity: input_select.maintainx_wo_asset
+            name: "Equipment/Asset"
+            icon: mdi:cog
+          - entity: input_select.maintainx_wo_location
+            name: "Location"
+            icon: mdi:map-marker
+
+      - type: entities
+        title: "When is it due? (optional)"
+        show_header_toggle: false
+        entities:
+          - entity: input_text.maintainx_wo_due_date
+            name: "Due Date (YYYY-MM-DD)"
+            icon: mdi:calendar
+
+      - type: button
+        entity: input_button.maintainx_create_work_order
+        name: "✅ CREATE JOB"
+        icon: mdi:send
+        tap_action:
+          action: toggle
+        icon_height: 70px
+        show_state: false
+
+  ##############################################
+  # TAB 5 — QUICK REPORT
+  ##############################################
+  - title: Quick
+    path: quick
+    icon: mdi:lightning-bolt
+    badges: []
+    cards:
+
+      - type: markdown
+        content: |
+          # ⚡ Quick Report
+          ### Tap once to report a problem
+
+      - type: grid
+        columns: 2
+        square: true
+        cards:
+          - type: button
+            entity: input_button.maintainx_report_printer
+            name: "🖨️ Printer"
+            icon: mdi:printer-alert
+            tap_action:
+              action: toggle
+            show_state: false
+          - type: button
+            entity: input_button.maintainx_report_hvac
+            name: "❄️ HVAC"
+            icon: mdi:hvac
+            tap_action:
+              action: toggle
+            show_state: false
+          - type: button
+            entity: input_button.maintainx_report_plumbing
+            name: "🔧 Plumbing"
+            icon: mdi:water-pump
+            tap_action:
+              action: toggle
+            show_state: false
+          - type: button
+            entity: input_button.maintainx_report_electrical
+            name: "⚡ Electrical"
+            icon: mdi:flash-alert
+            tap_action:
+              action: toggle
+            show_state: false
+          - type: button
+            entity: input_button.maintainx_report_safety
+            name: "🛡️ Safety"
+            icon: mdi:shield-alert
+            tap_action:
+              action: toggle
+            show_state: false
+          - type: button
+            entity: input_button.maintainx_report_general
+            name: "🔧 General"
+            icon: mdi:wrench
+            tap_action:
+              action: toggle
+            show_state: false
+
+  ##############################################
+  # TAB 6 — ASSETS
+  ##############################################
+  - title: Assets
+    path: assets
+    icon: mdi:package-variant
+    badges: []
+    cards:
+
+      - type: markdown
+        content: |
+          # 🔩 Equipment Status
+          {% set assets = state_attr('sensor.maintainx_assets', 'assets') %}
+          {% if assets %}
+          {% set total = assets | length %}
+          {% set safe = assets | selectattr('is_safe') | list | length %}
+
+          ### ✅ **{{ safe }}** Safe • 🚫 **{{ total - safe }}** Need Attention • 📦 **{{ total }}** Total
+          {% endif %}
+
+      # ==== NOT SAFE - DETAILED ====
+      - type: markdown
+        content: |
+          {% set assets = state_attr('sensor.maintainx_assets', 'assets') %}
+          {% if assets %}
+          {% set unsafe = assets | rejectattr('is_safe') | list %}
+          {% if unsafe | length > 0 %}
+          # 🚨 NOT Safe to Use — {{ unsafe | length }} items
+
+          {% for a in unsafe %}
+          ---
+
+          ## 🚫 {{ a.name }}
+
+          {% if a.description %}_{{ a.description }}_
+          {% endif %}
+
+          **Why it's not safe:**
+          {% for r in a.reasons %}
+          - {{ r }}
+          {% endfor %}
+
+          {% if a.open_work_orders | length > 0 %}
+          **Open Work Orders:**
+          {% for wo in a.open_work_orders %}
+          - {% if wo.priority == 'CRITICAL' %}🔴{% elif wo.priority == 'HIGH' %}🟠{% elif wo.priority == 'MEDIUM' %}🟡{% else %}⚪{% endif %} **{{ wo.title }}** ({{ wo.status }})
+          {% if wo.description %}<small>{{ wo.description[:100] }}</small>{% endif %}
+          {% endfor %}
+          {% endif %}
+
+          {% endfor %}
+          {% endif %}
+          {% endif %}
+
+      # ==== SAILBOATS ====
+      - type: custom:auto-entities
+        card:
+          type: grid
+          columns: 3
+          square: true
+          title: ⛵ Sailboats
+        card_param: cards
+        filter:
+          template: >
+            {% set items = states.sensor
+                | selectattr('entity_id', 'match', 'sensor.maintainx_asset_.*') 
+                | list %}
+            {% set result = namespace(cards=[]) %}
+            {% for e in items %}
+              {% set n = (state_attr(e.entity_id, 'name') or '') | lower %}
+              {% set d = (state_attr(e.entity_id, 'description') or '') | lower %}
+              {% set c = n ~ ' ' ~ d %}
+              {% set is_rigging = 'boom' in n or 'mast' in n or 'sail' == n or n.endswith(' sail') or n.startswith('sail ') or 'sail bag' in n or 'jib' in n or 'mainsail' in n or 'spinnaker' in n or 'rigging' in n or 'shroud' in n or 'stay' in n or 'halyard' in n or 'sheet' in n or 'tiller' in n or 'rudder' in n or 'centerboard' in n or 'centreboard' in n or 'daggerboard' in n or 'keel' in n or 'batten' in n or 'gooseneck' in n or 'kicker' in n or 'vang' in n or 'block' in n or 'cleat' in n or 'winch' in n or 'shackle' in n or 'shackel' in n %}
+              {% set is_sail = ('corsair' in c or 'topaz' in c or 'sailboat' in c or 'yacht' in c or 'catamaran' in c or 'dinghy' in c or 'boomerang' in c or 'ultimate' in c or 'laser' in c or 'optimist' in c or 'sabot' in c or ('sailing' in c and 'boat' in c)) and not is_rigging %}
+              {% if is_sail %}
+                {% set safe = state_attr(e.entity_id, 'is_safe') %}
+                {% set result.cards = result.cards + [{
+                  'type': 'custom:mushroom-template-card',
+                  'entity': e.entity_id,
+                  'primary': state_attr(e.entity_id, 'name'),
+                  'secondary': ('✅ Safe' if safe else '🚫 Not Safe'),
+                  'icon': 'mdi:sail-boat',
+                  'icon_color': ('green' if safe else 'red'),
+                  'layout': 'vertical',
+                  'fill_container': true,
+                  'tap_action': {'action': 'more-info'}
+                }] %}
+              {% endif %}
+            {% endfor %}
+            {{ result.cards }}
+        show_empty: false
+        
+      # ==== SAILING RIGGING & EQUIPMENT ====
+      - type: custom:auto-entities
+        card:
+          type: grid
+          columns: 3
+          square: true
+          title: 🪢 Rigging & Sailing Equipment
+        card_param: cards
+        filter:
+          template: >
+            {% set items = states.sensor
+                | selectattr('entity_id', 'match', 'sensor.maintainx_asset_.*') 
+                | list %}
+            {% set result = namespace(cards=[]) %}
+            {% for e in items %}
+              {% set n = (state_attr(e.entity_id, 'name') or '') | lower %}
+              {% set boat_keywords = ['corsair','topaz','boomerang','ultimate','laser','optimist','sabot','pacer','manly junior','flying 11','flying eleven','sabre','tasar','420','470','29er','49er','finn','mirror','heron','minnow','sunfish','vaurien','snipe','fireball','cherub','impulse','sailfish','holdfast','contender','starling','p class','sunburst','feva','pico','bahia','fusion','vago','stratos','xenon','streaker','musto skiff','skiff','yacht','catamaran','dinghy','sailboat','sail boat','sailing boat','trimaran','hobie'] %}
+              {% set rigging_parts = ['boom','mast','rudder','tiller','centerboard','centreboard','daggerboard','shackle','shackel','halyard','pulley','cleat','shroud','jib','mainsail','spinnaker','batten','gooseneck','kicker','vang','foil','rigging','sail','sails','sail bag','sheets','blocks'] %}
+              {% set is_boat = false %}
+              {% for kw in boat_keywords %}
+                {% if kw in n %}
+                  {% set is_boat = true %}
+                {% endif %}
+              {% endfor %}
+              {% set is_rigging = false %}
+              {% for kw in rigging_parts %}
+                {% if n == kw or n.startswith(kw ~ ' ') or n.endswith(' ' ~ kw) %}
+                  {% set is_rigging = true %}
+                {% endif %}
+              {% endfor %}
+              {% if is_rigging and not is_boat %}
+                {% set safe = state_attr(e.entity_id, 'is_safe') %}
+                {% set icon = 'mdi:anchor' %}
+                {% if 'sail' in n and 'bag' not in n %}
+                  {% set icon = 'mdi:sail-boat' %}
+                {% elif 'mast' in n %}
+                  {% set icon = 'mdi:tower-fire' %}
+                {% elif 'boom' in n or 'kicker' in n or 'vang' in n or 'gooseneck' in n %}
+                  {% set icon = 'mdi:ruler' %}
+                {% elif 'rudder' in n or 'tiller' in n %}
+                  {% set icon = 'mdi:steering' %}
+                {% elif 'centerboard' in n or 'centreboard' in n or 'daggerboard' in n or 'foil' in n %}
+                  {% set icon = 'mdi:knife' %}
+                {% elif 'halyard' in n or 'sheet' in n or 'rigging' in n or 'shroud' in n %}
+                  {% set icon = 'mdi:rope' %}
+                {% elif 'shackle' in n or 'shackel' in n or 'pulley' in n or 'block' in n or 'cleat' in n %}
+                  {% set icon = 'mdi:link-variant' %}
+                {% elif 'batten' in n %}
+                  {% set icon = 'mdi:minus' %}
+                {% endif %}
+                {% set result.cards = result.cards + [{
+                  'type': 'custom:mushroom-template-card',
+                  'entity': e.entity_id,
+                  'primary': state_attr(e.entity_id, 'name'),
+                  'secondary': ('✅ Safe' if safe else '🚫 Not Safe'),
+                  'icon': icon,
+                  'icon_color': ('green' if safe else 'red'),
+                  'layout': 'vertical',
+                  'fill_container': true,
+                  'tap_action': {'action': 'more-info'}
+                }] %}
+              {% endif %}
+            {% endfor %}
+            {{ result.cards }}
+        show_empty: false
+        
+      # ==== POWER BOATS ====
+      - type: custom:auto-entities
+        card:
+          type: grid
+          columns: 3
+          square: true
+          title: 🚤 Power Boats
+        card_param: cards
+        filter:
+          template: >
+            {% set items = states.sensor
+                | selectattr('entity_id', 'match', 'sensor.maintainx_asset_.*') 
+                | list %}
+            {% set result = namespace(cards=[]) %}
+            {% for e in items %}
+              {% set n = (state_attr(e.entity_id, 'name') or '') | lower %}
+              {% set d = (state_attr(e.entity_id, 'description') or '') | lower %}
+              {% set c = n ~ ' ' ~ d %}
+              {% set boat_names = ['corsair','topaz','boomerang','ultimate','laser','optimist','sabot','pacer','manly junior','flying 11','flying eleven','sabre','tasar','420','470','29er','49er','finn','mirror','heron','minnow','sunfish','vaurien','snipe','fireball','cherub','moth','impulse','sailfish','holdfast','contender','starling','p class','sunburst','sun burst','feva','pico','bahia','fusion','vago','stratos','bug','xenon','omega','solo','streaker','musto skiff','skiff','yacht','catamaran','cat rig','dinghy','sailboat','sail boat','sailing boat','trimaran','hobie'] %}
+              {% set rigging_names = ['boom','mast','rudder','tiller','centerboard','centreboard','daggerboard','shackle','shackel','halyard','pulley','block','cleat','shroud','jib','mainsail','spinnaker','batten','gooseneck','kicker','vang','sheet','foil','rigging'] %}
+              {% set is_boat = false %}
+              {% for name in boat_names %}
+                {% if name in c %}
+                  {% set is_boat = true %}
+                {% endif %}
+              {% endfor %}
+              {% set is_rigging = false %}
+              {% for name in rigging_names %}
+                {% if name == n or n.endswith(' ' ~ name) or n.startswith(name ~ ' ') or (' ' ~ name ~ ' ') in n %}
+                  {% set is_rigging = true %}
+                {% endif %}
+              {% endfor %}
+              {% set is_power = 'power boat' in c or 'powerboat' in c or 'speedboat' in c or 'motorboat' in c or 'runabout' in c or 'tinny' in c or 'tinnie' in c or 'aluminium boat' in c or 'aluminum boat' in c or 'rescue boat' in c or 'safety boat' in c or 'rib' in c or 'inflatable' in c or 'zodiac' in c or 'jet ski' in c or 'jetski' in c %}
+              {% set is_paddle = 'kayak' in c or 'canoe' in c or 'paddleboard' in c or 'sup ' in c or 'stand up paddle' in c or 'rowboat' in c %}
+              {% set is_generic_boat = ('boat' in c or 'vessel' in c or 'rover' in c) and not is_boat and not is_rigging %}
+              {% if (is_power or is_generic_boat) and not is_boat and not is_paddle and not is_rigging %}
+                {% set safe = state_attr(e.entity_id, 'is_safe') %}
+                {% set result.cards = result.cards + [{
+                  'type': 'custom:mushroom-template-card',
+                  'entity': e.entity_id,
+                  'primary': state_attr(e.entity_id, 'name'),
+                  'secondary': ('✅ Safe' if safe else '🚫 Not Safe'),
+                  'icon': 'mdi:ferry',
+                  'icon_color': ('green' if safe else 'red'),
+                  'layout': 'vertical',
+                  'fill_container': true,
+                  'tap_action': {'action': 'more-info'}
+                }] %}
+              {% endif %}
+            {% endfor %}
+            {{ result.cards }}
+        show_empty: false
+
+      # ==== KAYAKS & PADDLE CRAFT ====
+      - type: custom:auto-entities
+        card:
+          type: grid
+          columns: 3
+          square: true
+          title: 🛶 Kayaks & Paddle Craft
+        card_param: cards
+        filter:
+          template: >
+            {% set items = states.sensor
+                | selectattr('entity_id', 'match', 'sensor.maintainx_asset_.*') 
+                | list %}
+            {% set result = namespace(cards=[]) %}
+            {% for e in items %}
+              {% set n = (state_attr(e.entity_id, 'name') or '') | lower %}
+              {% set d = (state_attr(e.entity_id, 'description') or '') | lower %}
+              {% set c = n ~ ' ' ~ d %}
+              {% if 'kayak' in c or 'canoe' in c or 'paddleboard' in c or 'sup ' in c or 'stand up paddle' in c or 'rowboat' in c or 'row boat' in c %}
+                {% set safe = state_attr(e.entity_id, 'is_safe') %}
+                {% set result.cards = result.cards + [{
+                  'type': 'custom:mushroom-template-card',
+                  'entity': e.entity_id,
+                  'primary': state_attr(e.entity_id, 'name'),
+                  'secondary': ('✅ Safe' if safe else '🚫 Not Safe'),
+                  'icon': 'mdi:kayaking',
+                  'icon_color': ('green' if safe else 'red'),
+                  'layout': 'vertical',
+                  'fill_container': true,
+                  'tap_action': {'action': 'more-info'}
+                }] %}
+              {% endif %}
+            {% endfor %}
+            {{ result.cards }}
+        show_empty: false
+
+      # ==== ENGINES / OUTBOARDS ====
+      - type: custom:auto-entities
+        card:
+          type: grid
+          columns: 3
+          square: true
+          title: ⚙️ Engines & Motors
+        card_param: cards
+        filter:
+          template: >
+            {% set items = states.sensor
+                | selectattr('entity_id', 'match', 'sensor.maintainx_asset_.*') 
+                | list %}
+            {% set result = namespace(cards=[]) %}
+            {% for e in items %}
+              {% set n = (state_attr(e.entity_id, 'name') or '') | lower %}
+              {% set d = (state_attr(e.entity_id, 'description') or '') | lower %}
+              {% set c = n ~ ' ' ~ d %}
+              {% set is_engine = 'engine' in c or 'outboard' in c or 'inboard' in c or 'mercury' in c or 'yamaha' in c or 'suzuki' in c or 'honda motor' in c or 'evinrude' in c or 'tohatsu' in c or 'johnson motor' in c %}
+              {% set is_vehicle = 'boat' in c or 'sail' in c or 'yacht' in c or 'vessel' in c or 'kayak' in c or 'canoe' in c %}
+              {% if is_engine and not is_vehicle %}
+                {% set safe = state_attr(e.entity_id, 'is_safe') %}
+                {% set result.cards = result.cards + [{
+                  'type': 'custom:mushroom-template-card',
+                  'entity': e.entity_id,
+                  'primary': state_attr(e.entity_id, 'name'),
+                  'secondary': ('✅ Safe' if safe else '🚫 Not Safe'),
+                  'icon': 'mdi:engine',
+                  'icon_color': ('green' if safe else 'red'),
+                  'layout': 'vertical',
+                  'fill_container': true,
+                  'tap_action': {'action': 'more-info'}
+                }] %}
+              {% endif %}
+            {% endfor %}
+            {{ result.cards }}
+        show_empty: false
+
+      # ==== TRAILERS ====
+      - type: custom:auto-entities
+        card:
+          type: grid
+          columns: 3
+          square: true
+          title: 🚛 Trailers
+        card_param: cards
+        filter:
+          template: >
+            {% set items = states.sensor
+                | selectattr('entity_id', 'match', 'sensor.maintainx_asset_.*') 
+                | list %}
+            {% set result = namespace(cards=[]) %}
+            {% for e in items %}
+              {% set n = (state_attr(e.entity_id, 'name') or '') | lower %}
+              {% if 'trailer' in n or 'trolley' in n %}
+                {% set safe = state_attr(e.entity_id, 'is_safe') %}
+                {% set result.cards = result.cards + [{
+                  'type': 'custom:mushroom-template-card',
+                  'entity': e.entity_id,
+                  'primary': state_attr(e.entity_id, 'name'),
+                  'secondary': ('✅ Safe' if safe else '🚫 Not Safe'),
+                  'icon': 'mdi:truck-trailer',
+                  'icon_color': ('green' if safe else 'red'),
+                  'layout': 'vertical',
+                  'fill_container': true,
+                  'tap_action': {'action': 'more-info'}
+                }] %}
+              {% endif %}
+            {% endfor %}
+            {{ result.cards }}
+        show_empty: false
+
+      # ==== SAFETY GEAR ====
+      - type: custom:auto-entities
+        card:
+          type: grid
+          columns: 3
+          square: true
+          title: 🦺 Safety Equipment
+        card_param: cards
+        filter:
+          template: >
+            {% set items = states.sensor
+                | selectattr('entity_id', 'match', 'sensor.maintainx_asset_.*') 
+                | list %}
+            {% set result = namespace(cards=[]) %}
+            {% for e in items %}
+              {% set n = (state_attr(e.entity_id, 'name') or '') | lower %}
+              {% set d = (state_attr(e.entity_id, 'description') or '') | lower %}
+              {% set c = n ~ ' ' ~ d %}
+              {% if 'safety' in c or 'life jacket' in c or 'lifejacket' in c or 'pfd' in c or 'flare' in c or 'fire extinguisher' in c or 'epirb' in c or 'first aid' in c %}
+                {% set safe = state_attr(e.entity_id, 'is_safe') %}
+                {% set result.cards = result.cards + [{
+                  'type': 'custom:mushroom-template-card',
+                  'entity': e.entity_id,
+                  'primary': state_attr(e.entity_id, 'name'),
+                  'secondary': ('✅ Safe' if safe else '🚫 Not Safe'),
+                  'icon': 'mdi:shield-check',
+                  'icon_color': ('green' if safe else 'red'),
+                  'layout': 'vertical',
+                  'fill_container': true,
+                  'tap_action': {'action': 'more-info'}
+                }] %}
+              {% endif %}
+            {% endfor %}
+            {{ result.cards }}
+        show_empty: false
+
+      # ==== TOOLS ====
+      - type: custom:auto-entities
+        card:
+          type: grid
+          columns: 3
+          square: true
+          title: 🔧 Tools
+        card_param: cards
+        filter:
+          template: >
+            {% set items = states.sensor
+                | selectattr('entity_id', 'match', 'sensor.maintainx_asset_.*') 
+                | list %}
+            {% set result = namespace(cards=[]) %}
+            {% for e in items %}
+              {% set n = (state_attr(e.entity_id, 'name') or '') | lower %}
+              {% if 'tool' in n or 'drill' in n or 'wrench' in n or 'grinder' in n or 'hammer' in n or n == 'saw' %}
+                {% set safe = state_attr(e.entity_id, 'is_safe') %}
+                {% set result.cards = result.cards + [{
+                  'type': 'custom:mushroom-template-card',
+                  'entity': e.entity_id,
+                  'primary': state_attr(e.entity_id, 'name'),
+                  'secondary': ('✅ Safe' if safe else '🚫 Not Safe'),
+                  'icon': 'mdi:tools',
+                  'icon_color': ('green' if safe else 'red'),
+                  'layout': 'vertical',
+                  'fill_container': true,
+                  'tap_action': {'action': 'more-info'}
+                }] %}
+              {% endif %}
+            {% endfor %}
+            {{ result.cards }}
+        show_empty: false
+
+      # ==== OTHER ====
+      - type: custom:auto-entities
+        card:
+          type: grid
+          columns: 3
+          square: true
+          title: 📦 Other Equipment
+        card_param: cards
+        filter:
+          template: >
+            {% set items = states.sensor
+                | selectattr('entity_id', 'match', 'sensor.maintainx_asset_.*') 
+                | list %}
+            {% set result = namespace(cards=[]) %}
+            {% for e in items %}
+              {% set n = (state_attr(e.entity_id, 'name') or '') | lower %}
+              {% set d = (state_attr(e.entity_id, 'description') or '') | lower %}
+              {% set c = n ~ ' ' ~ d %}
+              {% set boat_names = ['corsair','topaz','boomerang','ultimate','laser','optimist','sabot','pacer','manly junior','flying 11','flying eleven','sabre','tasar','420','470','29er','49er','finn','mirror','heron','minnow','sunfish','vaurien','snipe','fireball','cherub','moth','impulse','sailfish','holdfast','contender','starling','p class','sunburst','sun burst','feva','pico','bahia','fusion','vago','stratos','bug','xenon','omega','solo','streaker','musto skiff','skiff','yacht','catamaran','cat rig','dinghy','sailboat','sail boat','sailing boat','trimaran','hobie'] %}
+              {% set rigging_names = ['boom','mast','rudder','tiller','centerboard','centreboard','daggerboard','shackle','shackel','halyard','pulley','block','cleat','shroud','jib','mainsail','spinnaker','batten','gooseneck','kicker','vang','sheet','foil','rigging'] %}
+              {% set is_boat = false %}
+              {% for name in boat_names %}
+                {% if name in n %}
+                  {% set is_boat = true %}
+                {% endif %}
+              {% endfor %}
+              {% set is_rigging = false %}
+              {% for name in rigging_names %}
+                {% if name == n or n.endswith(' ' ~ name) or n.startswith(name ~ ' ') or (' ' ~ name ~ ' ') in n or n.endswith(name ~ 's') %}
+                  {% set is_rigging = true %}
+                {% endif %}
+              {% endfor %}
+              {% if 'sail' == n or n == 'sails' or n.endswith(' sail') or n.endswith(' sails') %}
+                {% set is_rigging = true %}
+              {% endif %}
+              {% set is_power = 'power boat' in c or 'powerboat' in c or 'speedboat' in c or 'motorboat' in c or 'runabout' in c or 'tinny' in c or 'tinnie' in c or 'aluminium boat' in c or 'aluminum boat' in c or 'rescue boat' in c or 'safety boat' in c or 'rib' in c or 'inflatable' in c or 'zodiac' in c or 'jet ski' in c or 'jetski' in c %}
+              {% set is_paddle = 'kayak' in c or 'canoe' in c or 'paddleboard' in c or 'sup ' in c or 'stand up paddle' in c or 'rowboat' in c %}
+              {% set is_generic_boat = ('boat' in c or 'vessel' in c or 'rover' in c) and not is_rigging %}
+              {% set is_engine = 'engine' in c or 'outboard' in c or 'inboard' in c or 'mercury' in c or 'yamaha' in c or 'suzuki' in c or 'evinrude' in c or 'tohatsu' in c %}
+              {% set is_trailer = 'trailer' in n or 'trolley' in n %}
+              {% set is_safety = 'safety' in c or 'life jacket' in c or 'lifejacket' in c or 'pfd' in c or 'flare' in c or 'fire extinguisher' in c or 'epirb' in c or 'first aid' in c %}
+              {% set is_tool = 'tool' in n or 'drill' in n or 'wrench' in n or 'grinder' in n or 'hammer' in n or n == 'saw' %}
+              {% if not (is_boat or is_rigging or is_power or is_paddle or is_generic_boat or is_engine or is_trailer or is_safety or is_tool) %}
+                {% set safe = state_attr(e.entity_id, 'is_safe') %}
+                {% set result.cards = result.cards + [{
+                  'type': 'custom:mushroom-template-card',
+                  'entity': e.entity_id,
+                  'primary': state_attr(e.entity_id, 'name'),
+                  'secondary': ('✅ Safe' if safe else '🚫 Not Safe'),
+                  'icon': 'mdi:package-variant',
+                  'icon_color': ('green' if safe else 'red'),
+                  'layout': 'vertical',
+                  'fill_container': true,
+                  'tap_action': {'action': 'more-info'}
+                }] %}
+              {% endif %}
+            {% endfor %}
+            {{ result.cards }}
+        show_empty: false
+        
+  ##############################################
+  # TAB 7 — ALL JOBS
+  ##############################################
+  - title: All
+    path: all
+    icon: mdi:clipboard-text-clock
+    badges: []
+    cards:
+
+      - type: markdown
+        content: "# 📋 All Recent Jobs"
+
+      - type: markdown
+        content: |
+          {% set orders = state_attr('sensor.maintainx_recent_work_orders', 'recent_work_orders') %}
+          {% if orders and orders | length > 0 %}
+          {% for wo in orders %}
+
+          ---
+
+          {% if wo.status == 'OPEN' %}🔴{% elif wo.status == 'IN_PROGRESS' %}🟡{% elif wo.status == 'ON_HOLD' %}🟠{% elif wo.status == 'DONE' %}🟢{% else %}⚪{% endif %} **{{ wo.title }}** ({{ wo.status }})
+
+          <small>#{{ wo.id }} · {% if wo.priority == 'CRITICAL' %}🔴{% elif wo.priority == 'HIGH' %}🟠{% elif wo.priority == 'MEDIUM' %}🟡{% elif wo.priority == 'LOW' %}🟢{% else %}⚪{% endif %} {{ wo.priority }} · {{ wo.created_at[:10] if wo.created_at else '' }}{% if wo.assignees and wo.assignees | length > 0 %} · 👤 {{ wo.assignees[0].name }}{% endif %}</small>
+
+          {% if wo.description %}
+          <small>{{ wo.description[:150] }}{% if wo.description | length > 150 %}...{% endif %}</small>
+          {% endif %}
+
+          {% endfor %}
+          {% else %}
+          No work orders found
+          {% endif %}
