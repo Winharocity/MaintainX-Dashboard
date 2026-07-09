@@ -1,0 +1,98 @@
+alias: "MaintainX: Submit Work Order Form"
+description: Creates a new work order from the Create tab form fields.
+triggers:
+  - entity_id: input_button.maintainx_create_work_order
+    trigger: state
+conditions:
+  - condition: template
+    value_template: "{{ states('input_text.maintainx_wo_title', '') | trim | length > 0 }}"
+actions:
+  - variables:
+      wo_title: "{{ states('input_text.maintainx_wo_title', 'Untitled Job') | trim }}"
+      wo_desc: "{{ states('input_text.maintainx_wo_description', '') | trim }}"
+      wo_priority: "{{ states('input_select.maintainx_wo_priority', 'NONE') }}"
+      wo_category: "{{ states('input_select.maintainx_wo_category', 'DEFAULT') }}"
+      wo_due: "{{ states('input_text.maintainx_wo_due_date', '') | trim }}"
+      raw_assignee: "{{ states('input_select.maintainx_wo_assignee', '') }}"
+      raw_asset: "{{ states('input_select.maintainx_wo_asset', '') }}"
+      raw_location: "{{ states('input_select.maintainx_wo_location', '') }}"
+      assignee_id: >
+        {% if raw_assignee is string and 'ID:' in raw_assignee %}{{
+        raw_assignee.split('ID:')[1].replace(')','').strip() | int(0) }}{% else
+        %}0{% endif %}
+      asset_id: >
+        {% if raw_asset is string and 'ID:' in raw_asset %}{{
+        raw_asset.split('ID:')[1].replace(')','').strip() | int(0) }}{% else
+        %}0{% endif %}
+      location_id: >
+        {% if raw_location is string and 'ID:' in raw_location %}{{
+        raw_location.split('ID:')[1].replace(')','').strip() | int(0) }}{% else
+        %}0{% endif %}
+      base_payload:
+        title: "{{ wo_title }}"
+        description: "{{ wo_desc }}"
+        priority: "{{ wo_priority }}"
+        category: "{{ wo_category }}"
+  - variables:
+      payload: >-
+        {% set p = base_payload %} {% if wo_due | length == 10 %}{% set p = p |
+        combine({'due_date': wo_due ~ 'T00:00:00.000Z'}) %}{% endif %} {% if
+        assignee_id | int > 0 %}{% set p = p | combine({'assignee_id':
+        assignee_id | int}) %}{% endif %} {% if asset_id | int > 0 %}{% set p =
+        p | combine({'asset_id': asset_id | int}) %}{% endif %} {% if
+        location_id | int > 0 %}{% set p = p | combine({'location_id':
+        location_id | int}) %}{% endif %} {{ p }}
+  - action: maintainx.create_work_order
+    data: "{{ payload }}"
+  - delay: 2
+  - action: homeassistant.update_entity
+    target:
+      entity_id:
+        - sensor.maintainx_open_work_orders
+        - sensor.maintainx_recent_work_orders
+        - sensor.maintainx_assets
+  - action: input_text.set_value
+    target:
+      entity_id: input_text.maintainx_wo_title
+    data:
+      value: ""
+  - action: input_text.set_value
+    target:
+      entity_id: input_text.maintainx_wo_description
+    data:
+      value: ""
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.maintainx_wo_priority
+    data:
+      option: NONE
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.maintainx_wo_category
+    data:
+      option: DEFAULT
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.maintainx_wo_assignee
+    data:
+      option: None
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.maintainx_wo_asset
+    data:
+      option: None
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.maintainx_wo_location
+    data:
+      option: None
+  - action: input_text.set_value
+    target:
+      entity_id: input_text.maintainx_wo_due_date
+    data:
+      value: ""
+  - action: persistent_notification.create
+    data:
+      title: ✅ MaintainX
+      message: Work order '{{ wo_title }}' created successfully!
+mode: single
